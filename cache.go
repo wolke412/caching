@@ -10,6 +10,7 @@ type Cache[T any] struct {
 	mu   sync.RWMutex
 }
 
+// TODO: add preallocation
 func NewCache[T any]() *Cache[T] {
     
 	return &Cache[T] {
