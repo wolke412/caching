@@ -105,3 +105,10 @@ func (c *Cache[T]) Get() *map[int]T {
 
 	return &c.data
 }
+
+func (c *Cache[T]) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+    clear( c.data )
+}
