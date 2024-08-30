@@ -67,11 +67,9 @@ func (c *Cache[T]) Delete( keys ...int ) error {
 
 	defer c.mu.Unlock()
     
-    for key := range keys {
+    for _, key := range keys {
 
-        if c.Exists(key) {
-            delete(c.data, key)
-        }
+        delete(c.data, key)
     }
 
 	return nil
