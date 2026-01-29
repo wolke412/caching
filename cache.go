@@ -10,12 +10,13 @@ type Cache[T any] struct {
 	mu   sync.RWMutex
 }
 
-// TODO: impl preallocation
+// TODO: impl preallocation?
+// Maybe is not so necessary afterall
 func NewCache[T any]() *Cache[T] {
-    
-	return &Cache[T] {
+
+	return &Cache[T]{
 		data: make(map[int]T),
-        mu: sync.RWMutex{},
+		mu:   sync.RWMutex{},
 	}
 }
 
@@ -31,36 +32,36 @@ func (c *Cache[T]) UnsafeAdd(key int, value T) {
 	c.data[key] = value
 }
 
-func (c *Cache[T]) UnsafeDelete( keys ...int ) error {
-    for _, key := range keys {
-        delete(c.data, key)
-    }
+func (c *Cache[T]) UnsafeDelete(keys ...int) error {
+	for _, key := range keys {
+		delete(c.data, key)
+	}
 	return nil
 }
 
-func (c *Cache[T]) UnsafeExists( key int ) bool {
-	_, exists := c.data[key];
-    return exists 
+func (c *Cache[T]) UnsafeExists(key int) bool {
+	_, exists := c.data[key]
+	return exists
 }
 
-func (c *Cache[T]) UnsafeUpdate( key int, value T ) error {
+func (c *Cache[T]) UnsafeUpdate(key int, value T) error {
 
 	if _, exists := c.data[key]; !exists {
 		return errors.New("key not found")
-    }
+	}
 
 	c.data[key] = value
 	return nil
 }
 
-func (c *Cache[T]) UnsafeUpsert( key int, value T ) error {
+func (c *Cache[T]) UnsafeUpsert(key int, value T) error {
 
-    if c.Exists(key) {
-        return c.Update( key, value )            
-    }
+	if c.Exists(key) {
+		return c.UnsafeUpdate(key, value)
+	}
 
-    c.Add( key, value )
-    return nil
+	c.UnsafeAdd(key, value)
+	return nil
 }
 
 func (c *Cache[T]) UnsafeGet() *map[int]T {
@@ -68,10 +69,10 @@ func (c *Cache[T]) UnsafeGet() *map[int]T {
 }
 
 func (c *Cache[T]) UnsafeClear() {
-    clear( c.data )
+	clear(c.data)
 }
 
-func (c *Cache[T]) UnsafeFind( key int ) (T, error) {
+func (c *Cache[T]) UnsafeFind(key int) (T, error) {
 	if value, exists := c.data[key]; exists {
 		return value, nil
 	}
@@ -79,9 +80,8 @@ func (c *Cache[T]) UnsafeFind( key int ) (T, error) {
 	return *new(T), errors.New("key not found")
 }
 
-
 /*
-*/
+ */
 
 func (c *Cache[T]) Add(key int, value T) {
 	c.mu.Lock()
@@ -90,7 +90,7 @@ func (c *Cache[T]) Add(key int, value T) {
 	c.data[key] = value
 }
 
-func (c *Cache[T]) AddMultiple( entries map[int]T ) {
+func (c *Cache[T]) AddMultiple(entries map[int]T) {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -100,56 +100,69 @@ func (c *Cache[T]) AddMultiple( entries map[int]T ) {
 	}
 }
 
-func (c *Cache[T]) Update( key int, value T ) error {
+func (c *Cache[T]) Update(key int, value T) error {
 	c.mu.Lock()
 
 	defer c.mu.Unlock()
 
-	if _, exists := c.data[key]; !exists {
+	return c.UnsafeUpdate(key, value)
+}
+
+type UpdateWithCallback[T any] func(previous T) T
+
+func (c *Cache[T]) UpdateWith(key int, cb UpdateWithCallback[T]) error {
+	c.mu.Lock()
+
+	defer c.mu.Unlock()
+
+	prev, exists := c.data[key]
+
+	if !exists {
 		return errors.New("key not found")
 	}
 
-	c.data[key] = value
+	v := cb(prev)
+	c.data[key] = v
 
 	return nil
 }
 
-func (c *Cache[T]) Upsert( key int, value T ) error {
+func (c *Cache[T]) Upsert(key int, value T) error {
 
-    if c.Exists(key) {
-        return c.Update( key, value )            
-    }
+	if c.Exists(key) {
+		return c.Update(key, value)
+	}
 
-    c.Add( key, value )
-
-    return nil
-}
-
-func (c *Cache[T]) Delete( keys ...int ) error {
-
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    
-    for _, key := range keys {
-        
-        delete(c.data, key)
-    }
+	c.Add(key, value)
 
 	return nil
 }
 
-func (c *Cache[T]) Exists( key int ) bool {
+func (c *Cache[T]) Delete(keys ...int) error {
 
-    c.mu.RLock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, key := range keys {
+
+		delete(c.data, key)
+	}
+
+	return nil
+}
+
+func (c *Cache[T]) Exists(key int) bool {
+
+	c.mu.RLock()
 
 	defer c.mu.RUnlock()
 
-	_, exists := c.data[key];
+	_, exists := c.data[key]
 
-    return exists 
+	return exists
 }
 
-func (c *Cache[T]) Find( key int ) (T, error) {
+func (c *Cache[T]) Find(key int) (T, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -159,7 +172,6 @@ func (c *Cache[T]) Find( key int ) (T, error) {
 
 	return *new(T), errors.New("key not found")
 }
-
 
 func (c *Cache[T]) Get() *map[int]T {
 	c.mu.RLock()
@@ -171,6 +183,6 @@ func (c *Cache[T]) Get() *map[int]T {
 func (c *Cache[T]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-    
-    clear( c.data )
+
+	clear(c.data)
 }
