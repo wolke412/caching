@@ -98,7 +98,7 @@ for range 1000 {
 
 ```
 
-So now you are wonder, well, why use this then...
+So now you are wondering, well, why use this then...
 For now, this is just a map with a mutex, right.
 So the problem above is easily solvable thorough this:
 
